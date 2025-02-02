@@ -21,7 +21,12 @@
 #include <linux/rcupdate.h>
 #include <linux/close_range.h>
 #include <net/sock.h>
+/*
+ * ANDROID: crc fix for commit 95597be4806d ("fs: fix missing declaration of init_files")
+ */
+#ifndef __GENKSYMS__
 #include <linux/init_task.h>
+#endif
 
 #include "internal.h"
 
