@@ -1,10 +1,38 @@
 #include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/nsproxy.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 #include <linux/sched/task.h>
+#else
+#include <linux/sched.h>
+#endif
 #include <linux/uaccess.h>
 #include "klog.h" // IWYU pragma: keep
-#include "kernel_compat.h"
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+#include "linux/key.h"
+#include "linux/errno.h"
+#include "linux/cred.h"
+struct key *init_session_keyring = NULL;
+
+static inline int install_session_keyring(struct key *keyring)
+{
+	struct cred *new;
+	int ret;
+
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+
+	ret = install_session_keyring_to_cred(new, keyring);
+	if (ret < 0) {
+		abort_creds(new);
+		return ret;
+	}
+
+	return commit_creds(new);
+}
+#endif
 
 extern struct task_struct init_task;
 
@@ -48,8 +76,25 @@ void ksu_android_ns_fs_check()
 	task_unlock(current);
 }
 
+int ksu_access_ok(const void *addr, unsigned long size) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0)
+    /* For kernels before 5.0.0, pass the type argument to access_ok. */
+    return access_ok(VERIFY_READ, addr, size);
+#else
+    /* For kernels 5.0.0 and later, ignore the type argument. */
+    return access_ok(addr, size);
+#endif
+}
+
 struct file *ksu_filp_open_compat(const char *filename, int flags, umode_t mode)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+	if (init_session_keyring != NULL && !current_cred()->session_keyring &&
+	    (current->flags & PF_WQ_WORKER)) {
+		pr_info("installing init session keyring for older kernel\n");
+		install_session_keyring(init_session_keyring);
+	}
+#endif
 	// switch mnt_ns even if current is not wq_worker, to ensure what we open is the correct file in android mnt_ns, rather than user created mnt_ns
 	struct ksu_ns_fs_saved saved;
 	if (android_context_saved_enabled) {
