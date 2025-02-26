@@ -1195,7 +1195,7 @@ static int udp_v6_send_skb(struct sk_buff *skb, struct flowi6 *fl6,
 	__wsum csum = 0;
 	int offset = skb_transport_offset(skb);
 	int len = skb->len - offset;
-	int datalen = len - sizeof(*uh);
+	unsigned short datalen = len - sizeof(*uh);
 
 	/*
 	 * Create a UDP header

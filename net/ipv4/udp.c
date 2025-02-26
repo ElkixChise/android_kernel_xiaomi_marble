@@ -908,7 +908,7 @@ static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4,
 	int is_udplite = IS_UDPLITE(sk);
 	int offset = skb_transport_offset(skb);
 	int len = skb->len - offset;
-	int datalen = len - sizeof(*uh);
+	unsigned short datalen = len - sizeof(*uh);
 	__wsum csum = 0;
 
 	/*
