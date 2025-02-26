@@ -97,6 +97,11 @@ struct uart_8250_port {
 	struct list_head	list;		/* ports on this IRQ */
 	u32			capabilities;	/* port capabilities */
 	unsigned short		bugs;		/* port bugs */
+#ifdef __GENKSYMS__
+	bool			fifo_bug;
+#else
+	bool			unused;		/* Preserve Android kernel abi. Do NOT use! */
+#endif
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
 	unsigned char		acr;
 	unsigned char		fcr;
